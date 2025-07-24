@@ -1,34 +1,37 @@
+from flask import Flask, render_template, redirect, request, session
 import time
-from pymongo import MongoClient
-from datetime import datetime
 
-# 🔁 Replace with your actual connection string
-client = MongoClient("mongodb+srv://Amaravathi_2002:Amara_2002@cluster0.mongodb.net/?retryWrites=true&w=majority")
+app = Flask(__name__)
+app.secret_key = 'your_secret_key'
 
-# Connect to database and collection
-db = client["stopwatchDB"]
-collection = db["timings"]
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if "start_time" not in session:
+        session["start_time"] = None
+        session["elapsed"] = 0
 
-# START the stopwatch
-input("⏱ Press Enter to START the stopwatch...")
-start_time = datetime.now()
-print("⏳ Stopwatch started at:", start_time)
+    if request.method == "POST":
+        if request.form.get("action") == "Start":
+            if not session["start_time"]:
+                session["start_time"] = time.time()
+        elif request.form.get("action") == "Stop":
+            if session["start_time"]:
+                session["elapsed"] += time.time() - session["start_time"]
+                session["start_time"] = None
+        elif request.form.get("action") == "Reset":
+            session["start_time"] = None
+            session["elapsed"] = 0
 
-# STOP the stopwatch
-input("⏹ Press Enter to STOP the stopwatch...")
-end_time = datetime.now()
-print("🛑 Stopwatch stopped at:", end_time)
+    elapsed = session["elapsed"]
+    if session["start_time"]:
+        elapsed += time.time() - session["start_time"]
 
-# CALCULATE duration
-duration = end_time - start_time
-print("🕒 Duration:", duration)
+    hrs = int(elapsed) // 3600
+    mins = (int(elapsed) % 3600) // 60
+    secs = int(elapsed) % 60
+    formatted_time = f"{hrs:02}:{mins:02}:{secs:02}"
 
-# SAVE to MongoDB
-record = {
-    "start_time": start_time,
-    "end_time": end_time,
-    "duration": str(duration)
-}
+    return render_template("index.html", time=formatted_time)
 
-collection.insert_one(record)
-print("✅ Data saved to MongoDB.")
+if __name__ == "__main__":
+    app.run(debug=True)
